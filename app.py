@@ -59,6 +59,25 @@ TRADE_GROUP_LIST_DF = None
 TRADE_SUMMARY = None
 
 # ============================================================
+# ERROS DE CARGA
+# ============================================================
+LOAD_ERRORS = {
+    "bea_core": None,
+    "bea_core_catalog": None,
+    "bea_industry": None,
+    "bea_industry_catalog": None,
+    "trade_countries": None,
+    "trade_groups": None,
+    "trade_total": None,
+    "trade_partner_master": None,
+    "trade_catalog": None,
+    "trade_aliases": None,
+    "trade_country_list": None,
+    "trade_group_list": None,
+    "trade_summary": None,
+}
+
+# ============================================================
 # FUNÇÕES AUXILIARES
 # ============================================================
 def utc_now_iso():
@@ -132,9 +151,19 @@ def df_to_records(df, max_rows=500):
 
 
 def load_csv_if_exists(path):
-    if os.path.exists(path):
-        return pd.read_csv(path)
-    return None
+    if not os.path.exists(path):
+        return None
+
+    encodings_to_try = ["utf-8", "utf-8-sig", "cp1252", "latin1"]
+
+    last_error = None
+    for enc in encodings_to_try:
+        try:
+            return pd.read_csv(path, encoding=enc)
+        except Exception as e:
+            last_error = e
+
+    raise RuntimeError(f"Falha ao ler CSV {path}. Último erro: {last_error}")
 
 
 def bea_files_status():
@@ -166,17 +195,29 @@ def ensure_bea_loaded():
     global BEA_INDUSTRY_DF
     global BEA_INDUSTRY_CATALOG_DF
 
-    if BEA_CORE_DF is None:
-        BEA_CORE_DF = load_csv_if_exists(BEA_CORE_CSV)
+    if BEA_CORE_DF is None and LOAD_ERRORS["bea_core"] is None:
+        try:
+            BEA_CORE_DF = load_csv_if_exists(BEA_CORE_CSV)
+        except Exception as e:
+            LOAD_ERRORS["bea_core"] = str(e)
 
-    if BEA_CORE_CATALOG_DF is None:
-        BEA_CORE_CATALOG_DF = load_csv_if_exists(BEA_CORE_CATALOG_CSV)
+    if BEA_CORE_CATALOG_DF is None and LOAD_ERRORS["bea_core_catalog"] is None:
+        try:
+            BEA_CORE_CATALOG_DF = load_csv_if_exists(BEA_CORE_CATALOG_CSV)
+        except Exception as e:
+            LOAD_ERRORS["bea_core_catalog"] = str(e)
 
-    if BEA_INDUSTRY_DF is None:
-        BEA_INDUSTRY_DF = load_csv_if_exists(BEA_INDUSTRY_CSV)
+    if BEA_INDUSTRY_DF is None and LOAD_ERRORS["bea_industry"] is None:
+        try:
+            BEA_INDUSTRY_DF = load_csv_if_exists(BEA_INDUSTRY_CSV)
+        except Exception as e:
+            LOAD_ERRORS["bea_industry"] = str(e)
 
-    if BEA_INDUSTRY_CATALOG_DF is None:
-        BEA_INDUSTRY_CATALOG_DF = load_csv_if_exists(BEA_INDUSTRY_CATALOG_CSV)
+    if BEA_INDUSTRY_CATALOG_DF is None and LOAD_ERRORS["bea_industry_catalog"] is None:
+        try:
+            BEA_INDUSTRY_CATALOG_DF = load_csv_if_exists(BEA_INDUSTRY_CATALOG_CSV)
+        except Exception as e:
+            LOAD_ERRORS["bea_industry_catalog"] = str(e)
 
 
 def ensure_trade_loaded():
@@ -190,33 +231,60 @@ def ensure_trade_loaded():
     global TRADE_GROUP_LIST_DF
     global TRADE_SUMMARY
 
-    if TRADE_COUNTRIES_DF is None:
-        TRADE_COUNTRIES_DF = load_csv_if_exists(TRADE_COUNTRIES_CSV)
+    if TRADE_COUNTRIES_DF is None and LOAD_ERRORS["trade_countries"] is None:
+        try:
+            TRADE_COUNTRIES_DF = load_csv_if_exists(TRADE_COUNTRIES_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_countries"] = str(e)
 
-    if TRADE_GROUPS_DF is None:
-        TRADE_GROUPS_DF = load_csv_if_exists(TRADE_GROUPS_CSV)
+    if TRADE_GROUPS_DF is None and LOAD_ERRORS["trade_groups"] is None:
+        try:
+            TRADE_GROUPS_DF = load_csv_if_exists(TRADE_GROUPS_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_groups"] = str(e)
 
-    if TRADE_TOTAL_DF is None:
-        TRADE_TOTAL_DF = load_csv_if_exists(TRADE_TOTAL_CSV)
+    if TRADE_TOTAL_DF is None and LOAD_ERRORS["trade_total"] is None:
+        try:
+            TRADE_TOTAL_DF = load_csv_if_exists(TRADE_TOTAL_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_total"] = str(e)
 
-    if TRADE_PARTNER_MASTER_DF is None:
-        TRADE_PARTNER_MASTER_DF = load_csv_if_exists(TRADE_PARTNER_MASTER_CSV)
+    if TRADE_PARTNER_MASTER_DF is None and LOAD_ERRORS["trade_partner_master"] is None:
+        try:
+            TRADE_PARTNER_MASTER_DF = load_csv_if_exists(TRADE_PARTNER_MASTER_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_partner_master"] = str(e)
 
-    if TRADE_CATALOG_DF is None:
-        TRADE_CATALOG_DF = load_csv_if_exists(TRADE_CATALOG_CSV)
+    if TRADE_CATALOG_DF is None and LOAD_ERRORS["trade_catalog"] is None:
+        try:
+            TRADE_CATALOG_DF = load_csv_if_exists(TRADE_CATALOG_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_catalog"] = str(e)
 
-    if TRADE_ALIASES_DF is None:
-        TRADE_ALIASES_DF = load_csv_if_exists(TRADE_ALIASES_CSV)
+    if TRADE_ALIASES_DF is None and LOAD_ERRORS["trade_aliases"] is None:
+        try:
+            TRADE_ALIASES_DF = load_csv_if_exists(TRADE_ALIASES_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_aliases"] = str(e)
 
-    if TRADE_COUNTRY_LIST_DF is None:
-        TRADE_COUNTRY_LIST_DF = load_csv_if_exists(TRADE_COUNTRY_LIST_CSV)
+    if TRADE_COUNTRY_LIST_DF is None and LOAD_ERRORS["trade_country_list"] is None:
+        try:
+            TRADE_COUNTRY_LIST_DF = load_csv_if_exists(TRADE_COUNTRY_LIST_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_country_list"] = str(e)
 
-    if TRADE_GROUP_LIST_DF is None:
-        TRADE_GROUP_LIST_DF = load_csv_if_exists(TRADE_GROUP_LIST_CSV)
+    if TRADE_GROUP_LIST_DF is None and LOAD_ERRORS["trade_group_list"] is None:
+        try:
+            TRADE_GROUP_LIST_DF = load_csv_if_exists(TRADE_GROUP_LIST_CSV)
+        except Exception as e:
+            LOAD_ERRORS["trade_group_list"] = str(e)
 
-    if TRADE_SUMMARY is None and os.path.exists(TRADE_SUMMARY_JSON):
-        with open(TRADE_SUMMARY_JSON, "r", encoding="utf-8") as f:
-            TRADE_SUMMARY = json.load(f)
+    if TRADE_SUMMARY is None and LOAD_ERRORS["trade_summary"] is None and os.path.exists(TRADE_SUMMARY_JSON):
+        try:
+            with open(TRADE_SUMMARY_JSON, "r", encoding="utf-8") as f:
+                TRADE_SUMMARY = json.load(f)
+        except Exception as e:
+            LOAD_ERRORS["trade_summary"] = str(e)
 
 
 def ensure_all_loaded():
@@ -589,7 +657,8 @@ def health():
         "has_bea_key": bool(BEA_API_KEY),
         "bea_files": bea_files_status(),
         "trade_files": trade_files_status(),
-        "catalog_count": int(len(combined_catalog))
+        "catalog_count": int(len(combined_catalog)),
+        "load_errors": LOAD_ERRORS
     })
 
 
@@ -966,7 +1035,6 @@ def trade_brazil():
 # ============================================================
 # INICIALIZAÇÃO
 # ============================================================
-ensure_all_loaded()
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000))
