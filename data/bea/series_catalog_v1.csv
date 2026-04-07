@@ -1,0 +1,31 @@
+﻿series_name,source,dataset,table_code,line_number,frequency,unit,theme,subcategory,display_name_pt
+gdp_nominal,BEA,NIPA,T10105,1,Q,billions_usd_saar,gdp,headline,PIB nominal
+consumption_q,BEA,NIPA,T10105,2,Q,billions_usd_saar,gdp,expenditure,Consumo pessoal
+private_investment_q,BEA,NIPA,T10105,7,Q,billions_usd_saar,gdp,expenditure,Investimento privado bruto
+structures_q,BEA,NIPA,T10105,10,Q,billions_usd_saar,gdp,construction_proxy,Estruturas (proxy de construção)
+residential_q,BEA,NIPA,T10105,13,Q,billions_usd_saar,gdp,construction_proxy,Residencial (proxy de construção)
+government_q,BEA,NIPA,T10105,22,Q,billions_usd_saar,gdp,expenditure,Governo
+gdp_real,BEA,NIPA,T10106,1,Q,billions_chained_2017_usd_saar,gdp,headline,PIB real
+gdp_price_change,BEA,NIPA,T10107,1,Q,percent_qoq_annualized,gdp,price,Variação de preços do PIB
+gdp_implicit_deflator,BEA,NIPA,T10109,1,Q,index,gdp,price,Deflator implícito do PIB
+pce_index,BEA,NIPA,T20804,1,M,index_2017_100,inflation,headline,Índice PCE
+gas_energy_goods_pce_index,BEA,NIPA,T20804,11,M,index_2017_100,inflation,energy,Índice PCE de gasolina e bens energéticos
+services_pce_index,BEA,NIPA,T20804,13,M,index_2017_100,inflation,sector,Índice PCE de serviços
+housing_utils_pce_index,BEA,NIPA,T20804,15,M,index_2017_100,inflation,sector,Índice PCE de habitação e utilidades
+healthcare_pce_index,BEA,NIPA,T20804,16,M,index_2017_100,inflation,sector,Índice PCE de saúde
+core_pce_index,BEA,NIPA,T20804,25,M,index_2017_100,inflation,core,Índice Core PCE
+energy_goods_services_pce_index,BEA,NIPA,T20804,27,M,index_2017_100,inflation,energy,Índice PCE de energia (bens e serviços)
+pce_mom,BEA,NIPA,T20807,1,M,percent_mom,inflation,headline,PCE mensal
+gas_energy_goods_pce_mom,BEA,NIPA,T20807,11,M,percent_mom,inflation,energy,PCE de gasolina e bens energéticos mensal
+services_pce_mom,BEA,NIPA,T20807,13,M,percent_mom,inflation,sector,PCE de serviços mensal
+housing_utils_pce_mom,BEA,NIPA,T20807,15,M,percent_mom,inflation,sector,PCE de habitação e utilidades mensal
+healthcare_pce_mom,BEA,NIPA,T20807,16,M,percent_mom,inflation,sector,PCE de saúde mensal
+core_pce_mom,BEA,NIPA,T20807,25,M,percent_mom,inflation,core,Core PCE mensal
+energy_goods_services_pce_mom,BEA,NIPA,T20807,27,M,percent_mom,inflation,energy,PCE de energia (bens e serviços) mensal
+net_exports_q,BEA,NIPA,T10105,15,Q,billions_usd_saar,trade,headline_quarterly,Exportações líquidas
+exports_total_q,BEA,NIPA,T10105,16,Q,billions_usd_saar,trade,headline_quarterly,Exportações totais
+exports_goods_q,BEA,NIPA,T10105,17,Q,billions_usd_saar,trade,goods_services_quarterly,Exportações de bens
+exports_services_q,BEA,NIPA,T10105,18,Q,billions_usd_saar,trade,goods_services_quarterly,Exportações de serviços
+imports_total_q,BEA,NIPA,T10105,19,Q,billions_usd_saar,trade,headline_quarterly,Importações totais
+imports_goods_q,BEA,NIPA,T10105,20,Q,billions_usd_saar,trade,goods_services_quarterly,Importações de bens
+imports_services_q,BEA,NIPA,T10105,21,Q,billions_usd_saar,trade,goods_services_quarterly,Importações de serviços

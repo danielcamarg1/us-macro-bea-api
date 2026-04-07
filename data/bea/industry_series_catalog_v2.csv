@@ -1,0 +1,151 @@
+﻿industry_code,industry_name_pt,bucket,metric_code,metric_name_pt,unit,frequency
+72,Acomodação e alimentação,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+72,Acomodação e alimentação,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+72,Acomodação e alimentação,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+72,Acomodação e alimentação,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+72,Acomodação e alimentação,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+72,Acomodação e alimentação,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+11,"Agropecuária, silvicultura, pesca e caça",sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+11,"Agropecuária, silvicultura, pesca e caça",sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+11,"Agropecuária, silvicultura, pesca e caça",sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+11,"Agropecuária, silvicultura, pesca e caça",sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+11,"Agropecuária, silvicultura, pesca e caça",sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+11,"Agropecuária, silvicultura, pesca e caça",sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+71,"Artes, entretenimento e recreação",sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+71,"Artes, entretenimento e recreação",sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+71,"Artes, entretenimento e recreação",sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+71,"Artes, entretenimento e recreação",sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+71,"Artes, entretenimento e recreação",sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+71,"Artes, entretenimento e recreação",sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+33DG,Bens duráveis,subsector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+33DG,Bens duráveis,subsector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+33DG,Bens duráveis,subsector,value_added_price_index,Índice de preços do valor adicionado,index,A
+33DG,Bens duráveis,subsector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+33DG,Bens duráveis,subsector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+33DG,Bens duráveis,subsector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+31ND,Bens não duráveis,subsector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+31ND,Bens não duráveis,subsector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+31ND,Bens não duráveis,subsector,value_added_price_index,Índice de preços do valor adicionado,index,A
+31ND,Bens não duráveis,subsector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+31ND,Bens não duráveis,subsector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+31ND,Bens não duráveis,subsector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+42,Comércio atacadista,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+42,Comércio atacadista,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+42,Comércio atacadista,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+42,Comércio atacadista,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+42,Comércio atacadista,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+42,Comércio atacadista,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+44RT,Comércio varejista,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+44RT,Comércio varejista,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+44RT,Comércio varejista,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+44RT,Comércio varejista,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+44RT,Comércio varejista,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+44RT,Comércio varejista,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+23,Construção,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+23,Construção,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+23,Construção,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+23,Construção,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+23,Construção,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+23,Construção,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+52,Finanças e seguros,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+52,Finanças e seguros,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+52,Finanças e seguros,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+52,Finanças e seguros,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+52,Finanças e seguros,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+52,Finanças e seguros,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+55,Gestão de empresas,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+55,Gestão de empresas,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+55,Gestão de empresas,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+55,Gestão de empresas,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+55,Gestão de empresas,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+55,Gestão de empresas,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+G,Governo,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+G,Governo,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+G,Governo,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+G,Governo,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+G,Governo,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+G,Governo,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+53,Imobiliário e locação,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+53,Imobiliário e locação,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+53,Imobiliário e locação,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+53,Imobiliário e locação,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+53,Imobiliário e locação,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+53,Imobiliário e locação,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+PVT,Indústrias privadas,headline,value_added_nominal,Valor adicionado nominal,millions_usd,A
+PVT,Indústrias privadas,headline,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+PVT,Indústrias privadas,headline,value_added_price_index,Índice de preços do valor adicionado,index,A
+PVT,Indústrias privadas,headline,value_added_price_index,Índice de preços do valor adicionado,index,Q
+PVT,Indústrias privadas,headline,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+PVT,Indústrias privadas,headline,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+PSERV,Indústrias privadas prestadoras de serviços,macro_sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+PSERV,Indústrias privadas prestadoras de serviços,macro_sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+PSERV,Indústrias privadas prestadoras de serviços,macro_sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+PSERV,Indústrias privadas prestadoras de serviços,macro_sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+PSERV,Indústrias privadas prestadoras de serviços,macro_sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+PSERV,Indústrias privadas prestadoras de serviços,macro_sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+PGOOD,Indústrias privadas produtoras de bens,macro_sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+PGOOD,Indústrias privadas produtoras de bens,macro_sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+PGOOD,Indústrias privadas produtoras de bens,macro_sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+PGOOD,Indústrias privadas produtoras de bens,macro_sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+PGOOD,Indústrias privadas produtoras de bens,macro_sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+PGOOD,Indústrias privadas produtoras de bens,macro_sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+51,Informação,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+51,Informação,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+51,Informação,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+51,Informação,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+51,Informação,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+51,Informação,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+31G,Manufatura,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+31G,Manufatura,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+31G,Manufatura,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+31G,Manufatura,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+31G,Manufatura,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+31G,Manufatura,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+21,Mineração,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+21,Mineração,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+21,Mineração,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+21,Mineração,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+21,Mineração,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+21,Mineração,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+81,Outros serviços,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+81,Outros serviços,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+81,Outros serviços,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+81,Outros serviços,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+81,Outros serviços,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+81,Outros serviços,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+62,Saúde e assistência social,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+62,Saúde e assistência social,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+62,Saúde e assistência social,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+62,Saúde e assistência social,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+62,Saúde e assistência social,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+62,Saúde e assistência social,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+56,Serviços administrativos e gestão de resíduos,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+56,Serviços administrativos e gestão de resíduos,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+56,Serviços administrativos e gestão de resíduos,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+56,Serviços administrativos e gestão de resíduos,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+56,Serviços administrativos e gestão de resíduos,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+56,Serviços administrativos e gestão de resíduos,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+61,Serviços educacionais,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+61,Serviços educacionais,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+61,Serviços educacionais,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+61,Serviços educacionais,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+61,Serviços educacionais,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+61,Serviços educacionais,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+54,Serviços profissionais e técnicos,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+54,Serviços profissionais e técnicos,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+54,Serviços profissionais e técnicos,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+54,Serviços profissionais e técnicos,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+54,Serviços profissionais e técnicos,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+54,Serviços profissionais e técnicos,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+48TW,Transporte e armazenagem,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+48TW,Transporte e armazenagem,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+48TW,Transporte e armazenagem,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+48TW,Transporte e armazenagem,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+48TW,Transporte e armazenagem,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+48TW,Transporte e armazenagem,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
+22,Utilities,sector,value_added_nominal,Valor adicionado nominal,millions_usd,A
+22,Utilities,sector,value_added_nominal,Valor adicionado nominal,millions_usd,Q
+22,Utilities,sector,value_added_price_index,Índice de preços do valor adicionado,index,A
+22,Utilities,sector,value_added_price_index,Índice de preços do valor adicionado,index,Q
+22,Utilities,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,A
+22,Utilities,sector,value_added_real,Valor adicionado real,millions_chained_2017_usd,Q
