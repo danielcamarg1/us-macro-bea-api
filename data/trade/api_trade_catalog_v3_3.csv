@@ -1,0 +1,4 @@
+﻿metric_code,metric_name_pt,frequency,unit,theme,subcategory,source,dataset,version,scope,api_dataset_name,available_partner_types,collected_at_utc
+exports_total,Exportações totais,A,usd_nominal,trade_country,country_annual,US Census International Trade API,intltrade_timeseries_hs,v3_2,trade_country_cleaned,trade_country_annual,"country, group_or_region, total",2026-04-07T15:13:13+00:00
+imports_total,Importações totais,A,usd_nominal,trade_country,country_annual,US Census International Trade API,intltrade_timeseries_hs,v3_2,trade_country_cleaned,trade_country_annual,"country, group_or_region, total",2026-04-07T15:13:13+00:00
+trade_balance,Saldo comercial,A,usd_nominal,trade_country,country_annual,US Census International Trade API,intltrade_timeseries_hs,v3_2,trade_country_cleaned,trade_country_annual,"country, group_or_region, total",2026-04-07T15:13:13+00:00

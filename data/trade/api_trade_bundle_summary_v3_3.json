@@ -1,0 +1,23 @@
+{
+  "generated_at_utc": "2026-04-07T15:13:13+00:00",
+  "project_root": "/content/drive/MyDrive/us_macro_project_bea/latest",
+  "deliverables_dir": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables",
+  "rows_countries": 7692,
+  "rows_groups": 639,
+  "rows_total": 33,
+  "n_unique_countries": 234,
+  "n_unique_groups": 20,
+  "files": {
+    "api_countries_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_country_annual_countries_v3_3.csv",
+    "api_countries_parquet": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_country_annual_countries_v3_3.parquet",
+    "api_groups_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_country_annual_groups_v3_3.csv",
+    "api_groups_parquet": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_country_annual_groups_v3_3.parquet",
+    "api_total_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_country_annual_total_v3_3.csv",
+    "api_partner_master_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_partner_master_v3_3.csv",
+    "api_catalog_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_catalog_v3_3.csv",
+    "api_alias_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_aliases_v3_3.csv",
+    "country_summary_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_country_list_v3_3.csv",
+    "group_summary_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_group_list_v3_3.csv",
+    "brazil_csv": "/content/drive/MyDrive/us_macro_project_bea/latest/deliverables/api_trade_brazil_2015_2025_v3_3.csv"
+  }
+}
