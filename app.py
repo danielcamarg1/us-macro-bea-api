@@ -26,7 +26,21 @@ BLS_CPI_META_REFRESH_HOURS = int(os.getenv("BLS_CPI_META_REFRESH_HOURS", "168") 
 BLS_API_CACHE_TTL_SECONDS = int(os.getenv("BLS_API_CACHE_TTL_SECONDS", "21600") or 21600)
 
 BLS_PUBLIC_API_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
-BLS_CPI_META_BASE_URL = "https://download.bls.gov/pub/time.series/cu/"
+BLS_CPI_META_BASE_URLS = [
+    "https://download.bls.gov/pub/time.series/cu/",
+    "https://download.bls.gov/pub/time.series/CU/",
+]
+
+BLS_HTTP_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/123.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/plain,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7",
+    "Connection": "keep-alive",
+}
 BLS_CPI_META_FILES = {
     "series": "cu.series",
     "area": "cu.area",
@@ -233,7 +247,7 @@ def download_text_file(url, path, max_age_hours=168, force=False, timeout=60):
     if not force and not should_refresh_file(path, max_age_hours):
         return path
 
-    response = requests.get(url, timeout=timeout)
+    response = requests.get(url, headers=BLS_HTTP_HEADERS, timeout=timeout)
     response.raise_for_status()
 
     with open(path, "w", encoding="utf-8") as f:
@@ -351,16 +365,33 @@ def standardize_bls_metadata_columns(df, kind):
 def download_bls_cpi_metadata_if_needed(force=False):
     ensure_dir(BLS_CPI_META_DIR)
 
+    last_error = None
+
     for key, filename in BLS_CPI_META_FILES.items():
-        url = f"{BLS_CPI_META_BASE_URL}{filename}"
         path = os.path.join(BLS_CPI_META_DIR, filename)
-        download_text_file(
-            url=url,
-            path=path,
-            max_age_hours=BLS_CPI_META_REFRESH_HOURS,
-            force=force,
-            timeout=60,
-        )
+
+        if not force and not should_refresh_file(path, BLS_CPI_META_REFRESH_HOURS):
+            continue
+
+        downloaded = False
+
+        for base_url in BLS_CPI_META_BASE_URLS:
+            url = f"{base_url}{filename}"
+            try:
+                download_text_file(
+                    url=url,
+                    path=path,
+                    max_age_hours=BLS_CPI_META_REFRESH_HOURS,
+                    force=True,
+                    timeout=60,
+                )
+                downloaded = True
+                break
+            except Exception as e:
+                last_error = e
+
+        if not downloaded:
+            raise RuntimeError(f"Falha ao baixar {filename}. Último erro: {last_error}")
 
 
 def build_bls_cpi_catalog():
