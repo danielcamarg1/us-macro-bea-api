@@ -1,3 +1,4 @@
+
 import os
 import json
 import unicodedata
@@ -358,24 +359,7 @@ def bls_request_payload(series_ids, startyear=None, endyear=None):
     return payload
 
 
-def fetch_bls_series(series_ids, startyear=None, endyear=None):
-    if not series_ids:
-        raise RuntimeError("Nenhuma série BLS informada.")
-
-    if startyear is not None and endyear is not None and (endyear - startyear) > 19:
-        raise RuntimeError("A API pública do BLS permite janelas de até 20 anos por consulta.")
-
-    payload = bls_request_payload(series_ids, startyear=startyear, endyear=endyear)
-
-    response = requests.post(
-        BLS_API_URL,
-        json=payload,
-        timeout=BLS_TIMEOUT_SECONDS,
-        headers={"Content-Type": "application/json"},
-    )
-    response.raise_for_status()
-
-    data = response.json()
+def _bls_parse_api_response(data):
     if data.get("status") != "REQUEST_SUCCEEDED":
         raise RuntimeError(f"BLS API retornou status inválido: {data}")
 
@@ -386,25 +370,77 @@ def fetch_bls_series(series_ids, startyear=None, endyear=None):
     return series_list
 
 
+def _fetch_bls_single_series_get(series_id, startyear=None, endyear=None):
+    url = f"{BLS_API_URL}{series_id}"
+    params = {}
+    if startyear is not None:
+        params["startyear"] = str(startyear)
+    if endyear is not None:
+        params["endyear"] = str(endyear)
+    if BLS_API_KEY:
+        params["registrationkey"] = BLS_API_KEY
+
+    response = requests.get(url, params=params, timeout=BLS_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    return _bls_parse_api_response(response.json())
+
+
+def _fetch_bls_series_post(series_ids, startyear=None, endyear=None):
+    payload = bls_request_payload(series_ids, startyear=startyear, endyear=endyear)
+
+    response = requests.post(
+        BLS_API_URL,
+        json=payload,
+        timeout=BLS_TIMEOUT_SECONDS,
+        headers={"Content-Type": "application/json"},
+    )
+    response.raise_for_status()
+    return _bls_parse_api_response(response.json())
+
+
+def fetch_bls_series(series_ids, startyear=None, endyear=None):
+    if not series_ids:
+        raise RuntimeError("Nenhuma série BLS informada.")
+
+    if startyear is not None and endyear is not None and (endyear - startyear) > 19:
+        raise RuntimeError("A API pública do BLS permite janelas de até 20 anos por consulta.")
+
+    # Para série única, usa a assinatura GET do BLS, que é a via oficial para uma série.
+    # Para múltiplas séries, usa POST.
+    if len(series_ids) == 1:
+        return _fetch_bls_single_series_get(series_ids[0], startyear=startyear, endyear=endyear)
+
+    return _fetch_bls_series_post(series_ids, startyear=startyear, endyear=endyear)
+
+
 def parse_bls_series_to_df(series_obj):
     rows = []
     series_id = str(series_obj.get("seriesID", "")).strip()
+    raw_data = series_obj.get("data", []) or []
 
-    for item in series_obj.get("data", []):
-        period = str(item.get("period", "")).strip()
-        if not period.startswith("M"):
+    for item in raw_data:
+        period = str(item.get("period", "")).strip().upper()
+
+        # Mantém apenas observações mensais M01..M12
+        if not period.startswith("M") or len(period) != 3:
             continue
         if period == "M13":
             continue
 
-        year = safe_int(item.get("year"))
         month = safe_int(period[1:])
-        if year is None or month is None:
+        year = safe_int(item.get("year"))
+        if year is None or month is None or month < 1 or month > 12:
             continue
 
-        value = safe_float(item.get("value"))
+        value_raw = item.get("value")
+        value = safe_float(value_raw)
         if value is None:
             continue
+
+        footnote_texts = []
+        for ft in item.get("footnotes", []) or []:
+            if isinstance(ft, dict) and ft.get("text"):
+                footnote_texts.append(str(ft.get("text")))
 
         rows.append({
             "series_id": series_id,
@@ -414,13 +450,22 @@ def parse_bls_series_to_df(series_obj):
             "period": period,
             "period_name": item.get("periodName"),
             "value": value,
+            "value_raw": value_raw,
+            "footnotes": " | ".join(footnote_texts) if footnote_texts else None,
         })
 
-    df = pd.DataFrame(rows)
-    if df.empty:
-        return df
+    if not rows:
+        return pd.DataFrame(columns=[
+            "series_id", "date", "year", "month", "period",
+            "period_name", "value", "value_raw", "footnotes"
+        ])
 
-    return df.sort_values(["year", "month"]).reset_index(drop=True)
+    df = pd.DataFrame(rows)
+    df = df.sort_values(["year", "month"]).reset_index(drop=True)
+
+    # Remove duplicatas exatas de mês, preservando a última observação.
+    df = df.drop_duplicates(subset=["series_id", "date"], keep="last").reset_index(drop=True)
+    return df
 
 
 def compute_bls_calc(df, calc):
