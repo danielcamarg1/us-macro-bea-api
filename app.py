@@ -737,7 +737,7 @@ def parse_bea_trade_monthly_summary_xlsx(content_bytes):
         if pd.isna(label):
             continue
         text = str(label).strip()
-        match = re.match(r"^(\d{4})\s+([A-Za-z]{3})$", text)
+        match = re.match(r"^(\d{4})\s+([A-Za-z]{3})(?:\s+\([^)]*\))?$", text)
         if not match:
             continue
 
@@ -917,7 +917,7 @@ def fetch_census_monthly_country_df(flow="export", month_from=None, month_to=Non
     meta = get_census_trade_meta(flow)
     month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=1)
 
-    fields = ["CTY_CODE", "CTY_NAME", meta["value_mo"], meta["value_yr"], "time"]
+    fields = ["CTY_CODE", "CTY_NAME", meta["value_mo"], meta["value_yr"]]
     params = {
         "get": ",".join(fields),
         "time": build_census_time_param(month_from, month_to),
@@ -953,7 +953,6 @@ def fetch_census_monthly_product_df(flow="export", month_from=None, month_to=Non
         meta["commodity_ldesc"],
         meta["value_mo"],
         meta["value_yr"],
-        "time",
     ]
 
     if partner_code:
