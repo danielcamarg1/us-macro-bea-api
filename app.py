@@ -1,8 +1,11 @@
 
 import os
 import json
+import re
 import unicodedata
 from datetime import datetime, timezone
+from io import BytesIO
+from urllib.parse import urljoin
 
 import pandas as pd
 import requests
@@ -21,8 +24,16 @@ TRADE_DIR = os.path.join(DATA_DIR, "trade")
 
 BEA_API_KEY = os.getenv("BEA_API_KEY", "").strip()
 BLS_API_KEY = os.getenv("BLS_API_KEY", "").strip()
+CENSUS_API_KEY = os.getenv("CENSUS_API_KEY", "").strip()
+
 BLS_API_URL = "https://api.bls.gov/publicAPI/v2/timeseries/data/"
 BLS_TIMEOUT_SECONDS = 60
+
+CENSUS_INTLTRADE_API_BASE = "https://api.census.gov/data/timeseries/intltrade"
+CENSUS_TIMEOUT_SECONDS = 60
+
+BEA_TRADE_RELEASE_INDEX_URL = "https://www.bea.gov/taxonomy/term/496"
+BEA_TIMEOUT_SECONDS = 60
 
 # ============================================================
 # ARQUIVOS BEA
@@ -48,7 +59,6 @@ TRADE_SUMMARY_JSON = os.path.join(TRADE_DIR, "api_trade_bundle_summary_v3_3.json
 # ============================================================
 # BLS CPI CURADO (API AO VIVO)
 # ============================================================
-# Estes aliases usam códigos oficiais de séries CPI-U sazonalmente ajustadas do BLS.
 BLS_CPI_SERIES_MAP = {
     "cpi_headline": {
         "series_id": "CUSR0000SA0",
@@ -178,6 +188,18 @@ BLS_CPI_SERIES_MAP = {
     },
 }
 
+TRADE_MONTHLY_SUMMARY_SERIES = {
+    "trade_monthly_balance_total": {"display_name_pt": "Balança comercial mensal total (bens e serviços)", "subcategory": "headline", "unit": "millions_usd_sa"},
+    "trade_monthly_balance_goods": {"display_name_pt": "Balança comercial mensal de bens", "subcategory": "headline_goods", "unit": "millions_usd_sa"},
+    "trade_monthly_balance_services": {"display_name_pt": "Balança comercial mensal de serviços", "subcategory": "headline_services", "unit": "millions_usd_sa"},
+    "trade_monthly_exports_total": {"display_name_pt": "Exportações mensais totais (bens e serviços)", "subcategory": "headline", "unit": "millions_usd_sa"},
+    "trade_monthly_exports_goods": {"display_name_pt": "Exportações mensais de bens", "subcategory": "headline_goods", "unit": "millions_usd_sa"},
+    "trade_monthly_exports_services": {"display_name_pt": "Exportações mensais de serviços", "subcategory": "headline_services", "unit": "millions_usd_sa"},
+    "trade_monthly_imports_total": {"display_name_pt": "Importações mensais totais (bens e serviços)", "subcategory": "headline", "unit": "millions_usd_sa"},
+    "trade_monthly_imports_goods": {"display_name_pt": "Importações mensais de bens", "subcategory": "headline_goods", "unit": "millions_usd_sa"},
+    "trade_monthly_imports_services": {"display_name_pt": "Importações mensais de serviços", "subcategory": "headline_services", "unit": "millions_usd_sa"},
+}
+
 # ============================================================
 # CACHE EM MEMÓRIA
 # ============================================================
@@ -196,6 +218,11 @@ TRADE_COUNTRY_LIST_DF = None
 TRADE_GROUP_LIST_DF = None
 TRADE_SUMMARY = None
 
+TRADE_MONTHLY_SUMMARY_DF = None
+TRADE_MONTHLY_SUMMARY_SOURCE_URL = None
+TRADE_MONTHLY_SUMMARY_RELEASE_URL = None
+TRADE_MONTHLY_SUMMARY_LAST_UPDATED = None
+
 # ============================================================
 # ERROS DE CARGA
 # ============================================================
@@ -213,6 +240,8 @@ LOAD_ERRORS = {
     "trade_country_list": None,
     "trade_group_list": None,
     "trade_summary": None,
+    "trade_monthly_bea": None,
+    "trade_monthly_census": None,
     "bls_cpi": None,
 }
 
@@ -305,6 +334,64 @@ def load_csv_if_exists(path):
     raise RuntimeError(f"Falha ao ler CSV {path}. Último erro: {last_error}")
 
 
+def parse_yyyy_mm(value):
+    if value is None:
+        return None
+    text = str(value).strip()
+    match = re.match(r"^(\d{4})-(\d{2})$", text)
+    if not match:
+        return None
+    year = safe_int(match.group(1))
+    month = safe_int(match.group(2))
+    if year is None or month is None or month < 1 or month > 12:
+        return None
+    return year, month
+
+
+def month_to_str(year, month):
+    return f"{int(year):04d}-{int(month):02d}"
+
+
+def add_months(year, month, delta):
+    total = year * 12 + (month - 1) + delta
+    new_year = total // 12
+    new_month = (total % 12) + 1
+    return new_year, new_month
+
+
+def month_range_list(start_ym, end_ym):
+    sy, sm = start_ym
+    ey, em = end_ym
+    current_y, current_m = sy, sm
+    out = []
+    while (current_y, current_m) <= (ey, em):
+        out.append(month_to_str(current_y, current_m))
+        current_y, current_m = add_months(current_y, current_m, 1)
+    return out
+
+
+def build_census_time_param(month_from, month_to):
+    if month_from == month_to:
+        return month_from
+    return f"from {month_from} to {month_to}"
+
+
+def infer_hs_comm_lvl(product_code=None, comm_lvl=None):
+    if comm_lvl:
+        return str(comm_lvl).strip().upper()
+
+    code = (str(product_code).strip() if product_code else "")
+    digits_only = re.sub(r"\D", "", code)
+
+    if len(digits_only) >= 10:
+        return "HS10"
+    if len(digits_only) >= 6:
+        return "HS6"
+    if len(digits_only) >= 4:
+        return "HS4"
+    return "HS2"
+
+
 def bea_files_status():
     return {
         "bea_core_csv": os.path.exists(BEA_CORE_CSV),
@@ -328,6 +415,22 @@ def trade_files_status():
     }
 
 
+def trade_monthly_summary_catalog_df():
+    rows = []
+    for series_name, meta in TRADE_MONTHLY_SUMMARY_SERIES.items():
+        rows.append({
+            "source_block": "trade_monthly_bea",
+            "dataset": "BEA_FT900_TIME_SERIES",
+            "display_name_pt": meta["display_name_pt"],
+            "frequency": "M",
+            "series_name": series_name,
+            "subcategory": meta["subcategory"],
+            "theme": "trade_monthly",
+            "unit": meta["unit"],
+        })
+    return pd.DataFrame(rows)
+
+
 def bls_cpi_catalog_df():
     rows = []
     for alias, meta in BLS_CPI_SERIES_MAP.items():
@@ -347,9 +450,7 @@ def bls_cpi_catalog_df():
 
 
 def bls_request_payload(series_ids, startyear=None, endyear=None):
-    payload = {
-        "seriesid": series_ids,
-    }
+    payload = {"seriesid": series_ids}
     if startyear is not None:
         payload["startyear"] = str(startyear)
     if endyear is not None:
@@ -405,8 +506,6 @@ def fetch_bls_series(series_ids, startyear=None, endyear=None):
     if startyear is not None and endyear is not None and (endyear - startyear) > 19:
         raise RuntimeError("A API pública do BLS permite janelas de até 20 anos por consulta.")
 
-    # Para série única, usa a assinatura GET do BLS, que é a via oficial para uma série.
-    # Para múltiplas séries, usa POST.
     if len(series_ids) == 1:
         return _fetch_bls_single_series_get(series_ids[0], startyear=startyear, endyear=endyear)
 
@@ -420,11 +519,7 @@ def parse_bls_series_to_df(series_obj):
 
     for item in raw_data:
         period = str(item.get("period", "")).strip().upper()
-
-        # Mantém apenas observações mensais M01..M12
-        if not period.startswith("M") or len(period) != 3:
-            continue
-        if period == "M13":
+        if not period.startswith("M") or len(period) != 3 or period == "M13":
             continue
 
         month = safe_int(period[1:])
@@ -462,8 +557,6 @@ def parse_bls_series_to_df(series_obj):
 
     df = pd.DataFrame(rows)
     df = df.sort_values(["year", "month"]).reset_index(drop=True)
-
-    # Remove duplicatas exatas de mês, preservando a última observação.
     df = df.drop_duplicates(subset=["series_id", "date"], keep="last").reset_index(drop=True)
     return df
 
@@ -557,6 +650,371 @@ def default_bls_year_range(year_start=None, year_end=None):
     return year_start, year_end
 
 
+# ============================================================
+# TRADE MENSAL - BEA SUMMARY + CENSUS DETAIL
+# ============================================================
+def _fetch_text(url, timeout=60):
+    response = requests.get(url, timeout=timeout)
+    response.raise_for_status()
+    return response.text
+
+
+def _fetch_bytes(url, timeout=60):
+    response = requests.get(url, timeout=timeout)
+    response.raise_for_status()
+    return response.content
+
+
+def discover_bea_trade_monthly_release_url():
+    html = _fetch_text(BEA_TRADE_RELEASE_INDEX_URL, timeout=BEA_TIMEOUT_SECONDS)
+    match = re.search(r'href="(/news/\d{4}/us-international-trade-goods-and-services-[^"]+)"', html)
+    if not match:
+        raise RuntimeError("Não foi possível localizar a release mensal de trade no site do BEA.")
+    return urljoin("https://www.bea.gov", match.group(1))
+
+
+def discover_bea_trade_monthly_summary_xlsx_url():
+    release_url = discover_bea_trade_monthly_release_url()
+    html = _fetch_text(release_url, timeout=BEA_TIMEOUT_SECONDS)
+
+    match = re.search(r'href="([^"]*trad\d{4}-time-series\.xlsx)"', html, flags=re.IGNORECASE)
+    if not match:
+        match = re.search(r'(https://www\.bea\.gov/sites/default/files/\d{4}-\d{2}/trad\d{4}-time-series\.xlsx)', html, flags=re.IGNORECASE)
+    if not match:
+        raise RuntimeError("Não foi possível localizar o arquivo XLSX de série temporal mensal do BEA.")
+
+    href = match.group(1)
+    xlsx_url = href if href.startswith("http") else urljoin("https://www.bea.gov", href)
+    return release_url, xlsx_url
+
+
+def parse_bea_trade_monthly_summary_xlsx(content_bytes):
+    xls = pd.ExcelFile(BytesIO(content_bytes))
+    if "Table 1" not in xls.sheet_names:
+        raise RuntimeError("O arquivo mensal do BEA não contém a aba 'Table 1' esperada.")
+
+    raw = pd.read_excel(BytesIO(content_bytes), sheet_name="Table 1", header=None)
+
+    last_updated = None
+    try:
+        first_cell = str(raw.iloc[0, 0])
+        match = re.search(r"Last updated (.+)$", first_cell)
+        if match:
+            last_updated = match.group(1).strip()
+    except Exception:
+        last_updated = None
+
+    monthly_row_idx = None
+    for idx, row in raw.iterrows():
+        if str(row.iloc[0]).strip() == "Monthly":
+            monthly_row_idx = idx
+            break
+
+    if monthly_row_idx is None:
+        raise RuntimeError("Não foi possível localizar a seção mensal na Table 1 do arquivo BEA.")
+
+    metric_cols = {
+        "balance_total": 1,
+        "balance_goods": 2,
+        "balance_services": 3,
+        "exports_total": 4,
+        "exports_goods": 5,
+        "exports_services": 6,
+        "imports_total": 7,
+        "imports_goods": 8,
+        "imports_services": 9,
+    }
+
+    month_map = {
+        "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
+        "May": 5, "Jun": 6, "Jul": 7, "Aug": 8,
+        "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+    }
+
+    rows = []
+    for idx in range(monthly_row_idx + 1, len(raw)):
+        label = raw.iloc[idx, 0]
+        if pd.isna(label):
+            continue
+        text = str(label).strip()
+        match = re.match(r"^(\d{4})\s+([A-Za-z]{3})$", text)
+        if not match:
+            continue
+
+        year = safe_int(match.group(1))
+        month = month_map.get(match.group(2))
+        if year is None or month is None:
+            continue
+
+        rec = {
+            "date": month_to_str(year, month),
+            "year": year,
+            "month": month,
+        }
+
+        for metric_name, col_idx in metric_cols.items():
+            rec[metric_name] = safe_float(raw.iloc[idx, col_idx])
+
+        rows.append(rec)
+
+    df = pd.DataFrame(rows).sort_values(["year", "month"]).reset_index(drop=True)
+    return df, last_updated
+
+
+def ensure_trade_monthly_summary_loaded(force=False):
+    global TRADE_MONTHLY_SUMMARY_DF
+    global TRADE_MONTHLY_SUMMARY_SOURCE_URL
+    global TRADE_MONTHLY_SUMMARY_RELEASE_URL
+    global TRADE_MONTHLY_SUMMARY_LAST_UPDATED
+
+    if TRADE_MONTHLY_SUMMARY_DF is not None and not force:
+        return
+
+    release_url, xlsx_url = discover_bea_trade_monthly_summary_xlsx_url()
+    content = _fetch_bytes(xlsx_url, timeout=BEA_TIMEOUT_SECONDS)
+    df, last_updated = parse_bea_trade_monthly_summary_xlsx(content)
+
+    TRADE_MONTHLY_SUMMARY_DF = df
+    TRADE_MONTHLY_SUMMARY_SOURCE_URL = xlsx_url
+    TRADE_MONTHLY_SUMMARY_RELEASE_URL = release_url
+    TRADE_MONTHLY_SUMMARY_LAST_UPDATED = last_updated
+    LOAD_ERRORS["trade_monthly_bea"] = None
+
+
+def resolve_trade_monthly_range(month_from=None, month_to=None, default_months=1):
+    start = parse_yyyy_mm(month_from) if month_from else None
+    end = parse_yyyy_mm(month_to) if month_to else None
+
+    latest = None
+    try:
+        ensure_trade_monthly_summary_loaded()
+        if TRADE_MONTHLY_SUMMARY_DF is not None and not TRADE_MONTHLY_SUMMARY_DF.empty:
+            latest = parse_yyyy_mm(str(TRADE_MONTHLY_SUMMARY_DF.iloc[-1]["date"]))
+    except Exception:
+        latest = None
+
+    if latest is None:
+        now = datetime.now(timezone.utc)
+        latest = (now.year, now.month)
+
+    if start is None and end is None:
+        end = latest
+        start = add_months(end[0], end[1], -(default_months - 1))
+    elif start is None and end is not None:
+        start = add_months(end[0], end[1], -(default_months - 1))
+    elif start is not None and end is None:
+        end = latest
+
+    if start > end:
+        raise RuntimeError("Intervalo mensal inválido: 'from' não pode ser maior que 'to'.")
+
+    return month_to_str(start[0], start[1]), month_to_str(end[0], end[1])
+
+
+def _find_first_existing_col(df, candidates):
+    if df is None or df.empty:
+        return None
+    existing = {str(c): c for c in df.columns}
+    for cand in candidates:
+        if cand in existing:
+            return existing[cand]
+    normalized = {normalize_text(c): c for c in df.columns}
+    for cand in candidates:
+        key = normalize_text(cand)
+        if key in normalized:
+            return normalized[key]
+    return None
+
+
+def resolve_partner_code(partner_input):
+    if not partner_input:
+        return None, None
+
+    raw = str(partner_input).strip()
+    if raw.isdigit():
+        return raw, None
+
+    ensure_trade_loaded()
+
+    target_name = resolve_partner_name(raw) or raw
+    target_norm = normalize_text(target_name)
+
+    candidate_dfs = [TRADE_COUNTRY_LIST_DF, TRADE_PARTNER_MASTER_DF, TRADE_COUNTRIES_DF]
+    code_candidates = ["country_code", "cty_code", "CTY_CODE", "code"]
+    name_candidates = ["country_name", "country_name_norm", "CTY_NAME", "name", "partner_name"]
+
+    for df in candidate_dfs:
+        if df is None or df.empty:
+            continue
+
+        code_col = _find_first_existing_col(df, code_candidates)
+        name_col = _find_first_existing_col(df, name_candidates)
+
+        if code_col is None or name_col is None:
+            continue
+
+        base = df[[code_col, name_col]].dropna().drop_duplicates().copy()
+        base["_name_norm"] = base[name_col].astype(str).map(normalize_text)
+
+        exact = base[base["_name_norm"] == target_norm]
+        if not exact.empty:
+            return str(exact.iloc[0][code_col]), str(exact.iloc[0][name_col])
+
+        contains = base[base["_name_norm"].str.contains(target_norm, na=False)]
+        if not contains.empty:
+            return str(contains.iloc[0][code_col]), str(contains.iloc[0][name_col])
+
+    return None, target_name
+
+
+def census_api_get(path, params):
+    final_params = dict(params or {})
+    if CENSUS_API_KEY:
+        final_params["key"] = CENSUS_API_KEY
+
+    url = f"{CENSUS_INTLTRADE_API_BASE}/{path.lstrip('/')}"
+    response = requests.get(url, params=final_params, timeout=CENSUS_TIMEOUT_SECONDS)
+    response.raise_for_status()
+
+    data = response.json()
+    if not isinstance(data, list) or not data:
+        raise RuntimeError("Resposta inesperada da Census API.")
+
+    header = data[0]
+    rows = data[1:]
+    if not isinstance(header, list):
+        raise RuntimeError("Cabeçalho inválido na resposta da Census API.")
+
+    return pd.DataFrame(rows, columns=header)
+
+
+def get_census_trade_meta(flow="export"):
+    flow_norm = normalize_text(flow)
+    if flow_norm in {"export", "exports"}:
+        return {
+            "path": "exports/hs",
+            "value_mo": "ALL_VAL_MO",
+            "value_yr": "ALL_VAL_YR",
+            "commodity_code": "E_COMMODITY",
+            "commodity_sdesc": "E_COMMODITY_SDESC",
+            "commodity_ldesc": "E_COMMODITY_LDESC",
+            "flow": "export",
+        }
+    if flow_norm in {"import", "imports"}:
+        return {
+            "path": "imports/hs",
+            "value_mo": "GEN_VAL_MO",
+            "value_yr": "GEN_VAL_YR",
+            "commodity_code": "I_COMMODITY",
+            "commodity_sdesc": "I_COMMODITY_SDESC",
+            "commodity_ldesc": "I_COMMODITY_LDESC",
+            "flow": "import",
+        }
+    raise RuntimeError("flow inválido. Use: export ou import.")
+
+
+def fetch_census_monthly_country_df(flow="export", month_from=None, month_to=None, partner_code=None):
+    meta = get_census_trade_meta(flow)
+    month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=1)
+
+    fields = ["CTY_CODE", "CTY_NAME", meta["value_mo"], meta["value_yr"], "time"]
+    params = {
+        "get": ",".join(fields),
+        "time": build_census_time_param(month_from, month_to),
+    }
+    if partner_code:
+        params["CTY_CODE"] = str(partner_code)
+
+    df = census_api_get(meta["path"], params)
+    if df.empty:
+        return df, meta
+
+    df["date"] = df["time"].astype(str)
+    df["value_mo"] = pd.to_numeric(df[meta["value_mo"]], errors="coerce")
+    df["value_yr"] = pd.to_numeric(df[meta["value_yr"]], errors="coerce")
+    df = df.rename(columns={"CTY_CODE": "country_code", "CTY_NAME": "country_name"})
+    df = df[["date", "country_code", "country_name", "value_mo", "value_yr"]].copy()
+
+    if not partner_code:
+        df = df[df["country_code"].astype(str) != "-"].copy()
+
+    df = df.sort_values(["date", "country_name"]).reset_index(drop=True)
+    return df, meta
+
+
+def fetch_census_monthly_product_df(flow="export", month_from=None, month_to=None, product_code=None, comm_lvl=None, partner_code=None):
+    meta = get_census_trade_meta(flow)
+    month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=1)
+    comm_lvl = infer_hs_comm_lvl(product_code=product_code, comm_lvl=comm_lvl)
+
+    fields = [
+        meta["commodity_code"],
+        meta["commodity_sdesc"],
+        meta["commodity_ldesc"],
+        meta["value_mo"],
+        meta["value_yr"],
+        "time",
+    ]
+
+    if partner_code:
+        fields = ["CTY_CODE", "CTY_NAME"] + fields
+
+    params = {
+        "get": ",".join(fields),
+        "time": build_census_time_param(month_from, month_to),
+        "COMM_LVL": comm_lvl,
+    }
+    if product_code:
+        params[meta["commodity_code"]] = str(product_code)
+    if partner_code:
+        params["CTY_CODE"] = str(partner_code)
+
+    df = census_api_get(meta["path"], params)
+    if df.empty:
+        return df, meta, comm_lvl
+
+    df["date"] = df["time"].astype(str)
+    df["value_mo"] = pd.to_numeric(df[meta["value_mo"]], errors="coerce")
+    df["value_yr"] = pd.to_numeric(df[meta["value_yr"]], errors="coerce")
+    df = df.rename(columns={
+        meta["commodity_code"]: "product_code",
+        meta["commodity_sdesc"]: "product_sdesc",
+        meta["commodity_ldesc"]: "product_ldesc",
+    })
+
+    wanted = ["date", "product_code", "product_sdesc", "product_ldesc", "value_mo", "value_yr"]
+    if partner_code:
+        df = df.rename(columns={"CTY_CODE": "country_code", "CTY_NAME": "country_name"})
+        wanted = ["date", "country_code", "country_name"] + wanted
+
+    df = df[wanted].copy()
+    df = df.sort_values([c for c in ["date", "product_code"] if c in df.columns]).reset_index(drop=True)
+    return df, meta, comm_lvl
+
+
+def aggregate_top(df, dimension="country", n=10):
+    if df is None or df.empty:
+        return pd.DataFrame()
+
+    if dimension == "country":
+        group_cols = ["country_code", "country_name"]
+    elif dimension == "product":
+        group_cols = ["product_code", "product_sdesc", "product_ldesc"]
+    else:
+        raise RuntimeError("dimension inválida. Use: country ou product.")
+
+    out = (
+        df.groupby(group_cols, dropna=False, as_index=False)["value_mo"]
+        .sum()
+        .sort_values("value_mo", ascending=False)
+        .reset_index(drop=True)
+    )
+    return out.head(n)
+
+
+# ============================================================
+# CARGA DE BASES LOCAIS
+# ============================================================
 def ensure_bea_loaded():
     global BEA_CORE_DF
     global BEA_CORE_CATALOG_DF
@@ -709,6 +1167,20 @@ def build_combined_catalog():
                 "display_name_pt": row.get("metric_name_pt"),
                 "frequency": row.get("frequency"),
                 "series_name": row.get("metric_code"),
+                "subcategory": row.get("subcategory"),
+                "theme": row.get("theme"),
+                "unit": row.get("unit"),
+            })
+
+    trade_monthly_cat = trade_monthly_summary_catalog_df()
+    if trade_monthly_cat is not None and not trade_monthly_cat.empty:
+        for _, row in trade_monthly_cat.iterrows():
+            rows.append({
+                "source_block": row.get("source_block"),
+                "dataset": row.get("dataset"),
+                "display_name_pt": row.get("display_name_pt"),
+                "frequency": row.get("frequency"),
+                "series_name": row.get("series_name"),
                 "subcategory": row.get("subcategory"),
                 "theme": row.get("theme"),
                 "unit": row.get("unit"),
@@ -1024,6 +1496,12 @@ def root():
             "/trade/query",
             "/trade/brazil",
             "/brazil",
+            "/trade/monthly/health",
+            "/trade/monthly/catalog",
+            "/trade/monthly/summary",
+            "/trade/monthly/country",
+            "/trade/monthly/product",
+            "/trade/monthly/top",
             "/bls/cpi/health",
             "/bls/cpi/catalog",
             "/bls/cpi/query",
@@ -1036,13 +1514,17 @@ def health():
     ensure_all_loaded()
     combined_catalog = build_combined_catalog()
 
+    summary_loaded = TRADE_MONTHLY_SUMMARY_DF is not None and not TRADE_MONTHLY_SUMMARY_DF.empty
+
     return jsonify({
         "ok": True,
         "timestamp_utc": utc_now_iso(),
         "has_bea_key": bool(BEA_API_KEY),
         "has_bls_key": bool(BLS_API_KEY),
+        "has_census_key": bool(CENSUS_API_KEY),
         "bea_files": bea_files_status(),
         "trade_files": trade_files_status(),
+        "trade_monthly_summary_loaded": bool(summary_loaded),
         "bls_cpi_catalog_count": int(len(bls_cpi_catalog_df())),
         "catalog_count": int(len(combined_catalog)),
         "load_errors": LOAD_ERRORS
@@ -1242,7 +1724,7 @@ def bea_industry_query():
     })
 
 # ============================================================
-# ENDPOINTS TRADE
+# ENDPOINTS TRADE ANUAL
 # ============================================================
 @app.route("/trade/health", methods=["GET"])
 def trade_health():
@@ -1417,6 +1899,371 @@ def trade_brazil():
         "year_end": year_end,
         "rows": int(len(result_df)),
         "data": df_to_records(result_df, max_rows=200)
+    })
+
+# ============================================================
+# ENDPOINTS TRADE MENSAL
+# ============================================================
+@app.route("/trade/monthly/health", methods=["GET"])
+def trade_monthly_health():
+    out = {
+        "ok": True,
+        "timestamp_utc": utc_now_iso(),
+        "has_census_key": bool(CENSUS_API_KEY),
+        "bea_release_url": TRADE_MONTHLY_SUMMARY_RELEASE_URL,
+        "bea_source_url": TRADE_MONTHLY_SUMMARY_SOURCE_URL,
+        "bea_last_updated": TRADE_MONTHLY_SUMMARY_LAST_UPDATED,
+        "load_errors": {
+            "trade_monthly_bea": LOAD_ERRORS.get("trade_monthly_bea"),
+            "trade_monthly_census": LOAD_ERRORS.get("trade_monthly_census"),
+        },
+    }
+
+    try:
+        ensure_trade_monthly_summary_loaded()
+        out["bea_summary_rows"] = 0 if TRADE_MONTHLY_SUMMARY_DF is None else int(len(TRADE_MONTHLY_SUMMARY_DF))
+        out["latest_summary_date"] = None if TRADE_MONTHLY_SUMMARY_DF is None or TRADE_MONTHLY_SUMMARY_DF.empty else str(TRADE_MONTHLY_SUMMARY_DF.iloc[-1]["date"])
+        LOAD_ERRORS["trade_monthly_bea"] = None
+    except Exception as e:
+        LOAD_ERRORS["trade_monthly_bea"] = str(e)
+        out["ok"] = False
+        out["bea_summary_rows"] = 0
+        out["latest_summary_date"] = None
+        out["bea_error"] = str(e)
+
+    try:
+        latest = out.get("latest_summary_date") or resolve_trade_monthly_range(default_months=1)[1]
+        probe_df, _ = fetch_census_monthly_country_df(flow="export", month_from=latest, month_to=latest, partner_code=None)
+        out["census_probe_rows"] = 0 if probe_df.empty else int(len(probe_df))
+        LOAD_ERRORS["trade_monthly_census"] = None
+    except Exception as e:
+        LOAD_ERRORS["trade_monthly_census"] = str(e)
+        out["ok"] = False
+        out["census_probe_rows"] = 0
+        out["census_error"] = str(e)
+
+    return jsonify(out)
+
+
+@app.route("/trade/monthly/catalog", methods=["GET"])
+def trade_monthly_catalog():
+    catalog = {
+        "summary_metrics": list(TRADE_MONTHLY_SUMMARY_SERIES.keys()),
+        "flows": ["export", "import"],
+        "product_dimension": {
+            "classification": "hs",
+            "supported_comm_lvl": ["HS2", "HS4", "HS6", "HS10"],
+        },
+        "endpoints": [
+            "/trade/monthly/summary",
+            "/trade/monthly/country",
+            "/trade/monthly/product",
+            "/trade/monthly/top",
+        ],
+        "notes": [
+            "summary usa a série temporal mensal do FT-900 do BEA para bens e serviços.",
+            "country e product usam a Census International Trade API mensal, com detalhamento de bens.",
+            "detalhes mensais por país e produto nesta camada são para bens; serviços detalhados por país/produto não estão expostos aqui.",
+        ],
+    }
+    return jsonify({
+        "ok": True,
+        "catalog": catalog
+    })
+
+
+@app.route("/trade/monthly/summary", methods=["GET"])
+def trade_monthly_summary():
+    month_from = request.args.get("from", "").strip() or None
+    month_to = request.args.get("to", "").strip() or None
+    max_rows = safe_int(request.args.get("max_rows")) or 5000
+
+    try:
+        ensure_trade_monthly_summary_loaded()
+        month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=24)
+        df = TRADE_MONTHLY_SUMMARY_DF.copy()
+        df = df[(df["date"] >= month_from) & (df["date"] <= month_to)].copy()
+
+        if df.empty:
+            return jsonify({
+                "ok": False,
+                "error": "Nenhum dado mensal encontrado no intervalo solicitado.",
+                "from": month_from,
+                "to": month_to,
+            }), 404
+
+        LOAD_ERRORS["trade_monthly_bea"] = None
+    except Exception as e:
+        LOAD_ERRORS["trade_monthly_bea"] = str(e)
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "from": month_from,
+            "to": month_to,
+        }), 502
+
+    return jsonify({
+        "ok": True,
+        "source_block": "trade_monthly_bea",
+        "dataset": "BEA_FT900_TIME_SERIES",
+        "frequency": "M",
+        "unit": "millions_usd_sa",
+        "from": month_from,
+        "to": month_to,
+        "rows": int(len(df)),
+        "last_available_date": None if df.empty else str(df.iloc[-1]["date"]),
+        "source_url": TRADE_MONTHLY_SUMMARY_SOURCE_URL,
+        "release_url": TRADE_MONTHLY_SUMMARY_RELEASE_URL,
+        "data": df_to_records(df, max_rows=max_rows)
+    })
+
+
+@app.route("/trade/monthly/country", methods=["GET"])
+def trade_monthly_country():
+    flow = request.args.get("flow", "export").strip()
+    month_from = request.args.get("from", "").strip() or None
+    month_to = request.args.get("to", "").strip() or None
+    partner_input = request.args.get("partner", "").strip() or None
+    max_rows = safe_int(request.args.get("max_rows")) or 5000
+
+    partner_code = None
+    partner_resolved = None
+    if partner_input:
+        partner_code, partner_resolved = resolve_partner_code(partner_input)
+        if not partner_code:
+            return jsonify({
+                "ok": False,
+                "error": "Parceiro mensal não encontrado para a consulta detalhada.",
+                "partner_input": partner_input,
+            }), 404
+
+    try:
+        df, meta = fetch_census_monthly_country_df(
+            flow=flow,
+            month_from=month_from,
+            month_to=month_to,
+            partner_code=partner_code,
+        )
+        month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=1)
+
+        if df.empty:
+            return jsonify({
+                "ok": False,
+                "error": "Nenhum dado mensal por país encontrado para os filtros informados.",
+                "flow": meta["flow"],
+                "from": month_from,
+                "to": month_to,
+                "partner_input": partner_input,
+                "partner_code": partner_code,
+            }), 404
+
+        LOAD_ERRORS["trade_monthly_census"] = None
+    except Exception as e:
+        LOAD_ERRORS["trade_monthly_census"] = str(e)
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "flow": flow,
+            "from": month_from,
+            "to": month_to,
+            "partner_input": partner_input,
+            "partner_code": partner_code,
+        }), 502
+
+    return jsonify({
+        "ok": True,
+        "source_block": "trade_monthly_census",
+        "dataset": "CENSUS_MITD_HS_COUNTRY",
+        "frequency": "M",
+        "unit": "usd_nominal",
+        "flow": meta["flow"],
+        "from": month_from,
+        "to": month_to,
+        "partner_input": partner_input,
+        "partner_resolved": partner_resolved,
+        "partner_code": partner_code,
+        "rows": int(len(df)),
+        "last_available_date": None if df.empty else str(df.iloc[-1]["date"]),
+        "data": df_to_records(df, max_rows=max_rows)
+    })
+
+
+@app.route("/trade/monthly/product", methods=["GET"])
+def trade_monthly_product():
+    flow = request.args.get("flow", "export").strip()
+    month_from = request.args.get("from", "").strip() or None
+    month_to = request.args.get("to", "").strip() or None
+    partner_input = request.args.get("partner", "").strip() or None
+    product_code = request.args.get("product_code", "").strip() or None
+    comm_lvl = request.args.get("comm_lvl", "").strip() or None
+    max_rows = safe_int(request.args.get("max_rows")) or 5000
+
+    partner_code = None
+    partner_resolved = None
+    if partner_input:
+        partner_code, partner_resolved = resolve_partner_code(partner_input)
+        if not partner_code:
+            return jsonify({
+                "ok": False,
+                "error": "Parceiro mensal não encontrado para a consulta detalhada.",
+                "partner_input": partner_input,
+            }), 404
+
+    try:
+        df, meta, comm_lvl_resolved = fetch_census_monthly_product_df(
+            flow=flow,
+            month_from=month_from,
+            month_to=month_to,
+            product_code=product_code,
+            comm_lvl=comm_lvl,
+            partner_code=partner_code,
+        )
+        month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=1)
+
+        if df.empty:
+            return jsonify({
+                "ok": False,
+                "error": "Nenhum dado mensal por produto encontrado para os filtros informados.",
+                "flow": meta["flow"],
+                "from": month_from,
+                "to": month_to,
+                "partner_input": partner_input,
+                "partner_code": partner_code,
+                "product_code": product_code,
+                "comm_lvl": comm_lvl_resolved,
+            }), 404
+
+        LOAD_ERRORS["trade_monthly_census"] = None
+    except Exception as e:
+        LOAD_ERRORS["trade_monthly_census"] = str(e)
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "flow": flow,
+            "from": month_from,
+            "to": month_to,
+            "partner_input": partner_input,
+            "partner_code": partner_code,
+            "product_code": product_code,
+            "comm_lvl": comm_lvl,
+        }), 502
+
+    return jsonify({
+        "ok": True,
+        "source_block": "trade_monthly_census",
+        "dataset": "CENSUS_MITD_HS_PRODUCT",
+        "frequency": "M",
+        "unit": "usd_nominal",
+        "flow": meta["flow"],
+        "from": month_from,
+        "to": month_to,
+        "partner_input": partner_input,
+        "partner_resolved": partner_resolved,
+        "partner_code": partner_code,
+        "product_code": product_code,
+        "comm_lvl": comm_lvl_resolved,
+        "rows": int(len(df)),
+        "last_available_date": None if df.empty else str(df.iloc[-1]["date"]),
+        "data": df_to_records(df, max_rows=max_rows)
+    })
+
+
+@app.route("/trade/monthly/top", methods=["GET"])
+def trade_monthly_top():
+    flow = request.args.get("flow", "export").strip()
+    dimension = request.args.get("dimension", "country").strip().lower()
+    month = request.args.get("month", "").strip() or None
+    month_from = request.args.get("from", "").strip() or None
+    month_to = request.args.get("to", "").strip() or None
+    n = safe_int(request.args.get("n")) or 10
+    partner_input = request.args.get("partner", "").strip() or None
+    comm_lvl = request.args.get("comm_lvl", "").strip() or None
+
+    if month:
+        month_from = month
+        month_to = month
+
+    partner_code = None
+    partner_resolved = None
+    if partner_input:
+        partner_code, partner_resolved = resolve_partner_code(partner_input)
+        if not partner_code:
+            return jsonify({
+                "ok": False,
+                "error": "Parceiro mensal não encontrado para a consulta top.",
+                "partner_input": partner_input,
+            }), 404
+
+    try:
+        if dimension == "country":
+            df, meta = fetch_census_monthly_country_df(
+                flow=flow,
+                month_from=month_from,
+                month_to=month_to,
+                partner_code=None,
+            )
+            month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=1)
+            top_df = aggregate_top(df, dimension="country", n=n)
+            flow_resolved = meta["flow"]
+            comm_lvl_resolved = None
+        elif dimension == "product":
+            df, meta, comm_lvl_resolved = fetch_census_monthly_product_df(
+                flow=flow,
+                month_from=month_from,
+                month_to=month_to,
+                product_code=None,
+                comm_lvl=comm_lvl or "HS2",
+                partner_code=partner_code,
+            )
+            month_from, month_to = resolve_trade_monthly_range(month_from, month_to, default_months=1)
+            top_df = aggregate_top(df, dimension="product", n=n)
+            flow_resolved = meta["flow"]
+        else:
+            return jsonify({
+                "ok": False,
+                "error": "dimension inválida. Use: country ou product."
+            }), 400
+
+        if top_df.empty:
+            return jsonify({
+                "ok": False,
+                "error": "Nenhum dado mensal encontrado para gerar o ranking solicitado.",
+                "flow": flow,
+                "dimension": dimension,
+                "from": month_from,
+                "to": month_to,
+            }), 404
+
+        LOAD_ERRORS["trade_monthly_census"] = None
+    except Exception as e:
+        LOAD_ERRORS["trade_monthly_census"] = str(e)
+        return jsonify({
+            "ok": False,
+            "error": str(e),
+            "flow": flow,
+            "dimension": dimension,
+            "from": month_from,
+            "to": month_to,
+            "partner_input": partner_input,
+        }), 502
+
+    return jsonify({
+        "ok": True,
+        "source_block": "trade_monthly_census",
+        "dataset": "CENSUS_MITD_HS",
+        "frequency": "M",
+        "unit": "usd_nominal",
+        "flow": flow_resolved,
+        "dimension": dimension,
+        "from": month_from,
+        "to": month_to,
+        "partner_input": partner_input,
+        "partner_resolved": partner_resolved,
+        "partner_code": partner_code,
+        "comm_lvl": comm_lvl_resolved,
+        "n": n,
+        "rows": int(len(top_df)),
+        "data": df_to_records(top_df, max_rows=n)
     })
 
 # ============================================================
